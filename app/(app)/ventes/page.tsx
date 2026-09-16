@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Receipt, Trash2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Article, Vente } from "@/lib/types";
-import { dateTime, money } from "@/lib/format";
+import { dateTime, numberValue } from "@/lib/format";
 import { canManage, useAuth } from "@/lib/auth";
 import {
   Badge,
@@ -36,22 +36,28 @@ export default function VentesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
-    code: `V-${Date.now().toString().slice(-6)}`,
+    code: "",
     commentaire: "",
     lignes: [] as { articleId: string; quantite: number; prixUnitaire: number }[],
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(page), size: String(size) });
-      if (search) params.set("search", search);
-      const res = await api<{ content: Vente[]; totalElements: number }>(`/ventes/paged?${params}`);
-      setRows(res.content);
-      setTotal(res.totalElements);
-    } finally {
-      setLoading(false);
-    }
+  // Code par défaut généré une seule fois à l'ouverture du modal (Date.now() est impure au rendu)
+  const openCreate = () => {
+    setForm((f) => ({ ...f, code: `V-${Date.now().toString().slice(-6)}` }));
+    setCreateOpen(true);
+  };
+
+  // Chargement async : setState dans les callbacks de réponse
+  const load = useCallback(() => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (search) params.set("search", search);
+    api<{ content: Vente[]; totalElements: number }>(`/ventes/paged?${params}`)
+      .then((res) => {
+        setRows(res.content);
+        setTotal(res.totalElements);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [page, size, search]);
 
   useEffect(() => {
@@ -67,6 +73,12 @@ export default function VentesPage() {
     setForm((f) => ({ ...f, lignes: f.lignes.map((l, i) => (i === idx ? { ...l, ...patch } : l)) }));
 
   const create = async () => {
+    // Validation : au moins une ligne complète avant l'appel API
+    const lignesInvalides = form.lignes.filter((l) => !l.articleId || l.quantite <= 0);
+    if (lignesInvalides.length > 0) {
+      toast("Chaque ligne doit avoir un article et une quantité positive", "error");
+      return;
+    }
     setCreating(true);
     try {
       await api("/ventes/create", {
@@ -84,7 +96,7 @@ export default function VentesPage() {
       });
       toast("Vente enregistrée — stock mis à jour");
       setCreateOpen(false);
-      setForm({ ...form, code: `V-${Date.now().toString().slice(-6)}`, commentaire: "", lignes: [] });
+      setForm({ code: `V-${Date.now().toString().slice(-6)}`, commentaire: "", lignes: [] });
       load();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Enregistrement impossible", "error");
@@ -153,7 +165,7 @@ export default function VentesPage() {
         subtitle={`${total} vente${total > 1 ? "s" : ""} — le stock est déduit automatiquement`}
         actions={
           manage && (
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Nouvelle vente
             </Button>
@@ -236,12 +248,12 @@ export default function VentesPage() {
                 </div>
                 <div className="w-24">
                   <Field label="Qté">
-                    <Input type="number" min={1} value={l.quantite} onChange={(e) => updateLine(idx, { quantite: Number(e.target.value) })} />
+                    <Input type="number" min={1} value={l.quantite} onChange={(e) => updateLine(idx, { quantite: numberValue(e.target.value) })} />
                   </Field>
                 </div>
                 <div className="w-32">
                   <Field label="PU">
-                    <Input type="number" value={l.prixUnitaire} onChange={(e) => updateLine(idx, { prixUnitaire: Number(e.target.value) })} />
+                    <Input type="number" min={0} value={l.prixUnitaire} onChange={(e) => updateLine(idx, { prixUnitaire: numberValue(e.target.value) })} />
                   </Field>
                 </div>
                 <div className="pb-2">

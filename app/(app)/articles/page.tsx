@@ -1,11 +1,12 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Download, FileSpreadsheet, Package, Plus, Trash2 } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
 import type { Article, Category } from "@/lib/types";
-import { money } from "@/lib/format";
+import { money, numberValue } from "@/lib/format";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useAuth, canManage } from "@/lib/auth";
 import {
   Badge,
@@ -35,6 +36,7 @@ function ArticlesInner() {
   const manage = canManage(roles);
   const { toast, Toaster } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -45,8 +47,11 @@ function ArticlesInner() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState("");
+  const searchDebounced = useDebouncedValue(search);
   const [sortBy, setSortBy] = useState("id");
   const [sortDir, setSortDir] = useState("asc");
+  // Mode « alertes » : activé par l'URL (?alerte=1) ou manuellement
+  const [alerteUrlFiltre, setAlerteUrlFiltre] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Article | null>(null);
@@ -54,35 +59,35 @@ function ArticlesInner() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<Article | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        size: String(size),
-        sortBy,
-        sortDir,
-      });
-      if (search) params.set("search", search);
-      const res = await api<{ content: Article[]; totalElements: number }>(
-        `/articles/paged?${params}`
-      );
-      setArticles(res.content);
-      setTotal(res.totalElements);
+  // Chargement async : les setState ont lieu dans les callbacks de réponse,
+  // jamais de façon synchrone dans l'effet (react-hooks/set-state-in-effect).
+  const load = useCallback(() => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(size),
+      sortBy,
+      sortDir,
+    });
+    if (searchDebounced) params.set("search", searchDebounced);
+    Promise.all([
+      api<{ content: Article[]; totalElements: number }>(`/articles/paged?${params}`),
+      api<Article[]>("/articles/sous-seuil"),
+    ])
+      .then(([res, sousSeuil]) => {
+        setArticles(res.content);
+        setTotal(res.totalElements);
+        setSousSeuilIds(
+          new Set(sousSeuil.map((a) => a.id).filter((id): id is number => id !== undefined))
+        );
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [page, size, searchDebounced, sortBy, sortDir]);
 
-      const sousSeuil = await api<Article[]>("/articles/sous-seuil");
-      setSousSeuilIds(new Set(sousSeuil.map((a) => a.id).filter((id): id is number => id !== undefined)));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, size, search, sortBy, sortDir]);
-
-  const loadCategories = useCallback(async () => {
-    try {
-      setCategories(await api<Category[]>("/categories/all"));
-    } catch {
-      /* silencieux */
-    }
+  const loadCategories = useCallback(() => {
+    api<Category[]>("/categories/all")
+      .then((cats) => setCategories(cats))
+      .catch(() => undefined /* silencieux */);
   }, []);
 
   useEffect(() => {
@@ -90,11 +95,13 @@ function ArticlesInner() {
     loadCategories();
   }, [load, loadCategories]);
 
-  useEffect(() => {
-    if (searchParams.get("alerte") === "1") {
-      setSearch("");
-    }
-  }, [searchParams]);
+  // Lien « Voir les articles sous seuil » du dashboard : filtre local dérivé de l'URL
+  const alerteUrl = searchParams.get("alerte") === "1";
+  const alerteSeulement = alerteUrlFiltre || alerteUrl;
+  const setAlerteFiltreManuel = (v: boolean) => {
+    setAlerteUrlFiltre(v);
+    if (!v) router.replace("/articles", { scroll: false });
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -108,7 +115,30 @@ function ArticlesInner() {
     setModalOpen(true);
   };
 
+  // En mode alerte, on n'affiche que les articles sous leur seuil
+  const articlesAffiches = alerteSeulement
+    ? articles.filter((a) => (a.id != null ? sousSeuilIds.has(a.id) : false))
+    : articles;
+  const totalAffiche = alerteSeulement ? articlesAffiches.length : total;
+
   const save = async () => {
+    // Validation : champs obligatoires côté client avant appel API
+    if (!form.codeArticle?.trim()) {
+      toast("Le code de l'article est obligatoire", "error");
+      return;
+    }
+    if (!form.designation?.trim()) {
+      toast("La désignation est obligatoire", "error");
+      return;
+    }
+    if (!form.category?.id) {
+      toast("Veuillez sélectionner une catégorie", "error");
+      return;
+    }
+    if ((form.prixUnitaire ?? 0) < 0 || (form.prixUnitaireTTc ?? 0) < 0) {
+      toast("Les prix ne peuvent pas être négatifs", "error");
+      return;
+    }
     setSaving(true);
     try {
       await api<Article>("/articles/create", { method: "POST", body: form });
@@ -132,6 +162,10 @@ function ArticlesInner() {
     } catch (err) {
       toast(err instanceof Error ? err.message : "Suppression impossible", "error");
     }
+  };
+
+  const clearAlerteFiltre = () => {
+    setAlerteFiltreManuel(false);
   };
 
   const columns: Column<Article>[] = [
@@ -216,7 +250,7 @@ function ArticlesInner() {
     <div>
       <PageTitle
         title="Articles"
-        subtitle={`${total} référence${total > 1 ? "s" : ""} dans votre stock`}
+        subtitle={`${totalAffiche} référence${totalAffiche > 1 ? "s" : ""} dans votre stock`}
         actions={
           <>
             <Button
@@ -242,9 +276,9 @@ function ArticlesInner() {
 
       <DataTable
         columns={columns}
-        rows={articles}
+        rows={articlesAffiches}
         loading={loading}
-        totalElements={total}
+        totalElements={totalAffiche}
         page={page}
         size={size}
         onPageChange={setPage}
@@ -270,9 +304,18 @@ function ArticlesInner() {
           <div className="flex items-center gap-2">
             <Badge color="indigo">
               <Package className="h-3 w-3" />
-              {articles.length} affichés
+              {articlesAffiches.length} affichés
             </Badge>
-            {sousSeuilIds.size > 0 && (
+            {alerteSeulement && (
+              <button
+                onClick={clearAlerteFiltre}
+                className="inline-flex items-center gap-1 rounded-full border border-rose-400/25 bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-medium text-rose-300 transition hover:bg-rose-500/25"
+                title="Retirer le filtre"
+              >
+                Sous seuil uniquement ✕
+              </button>
+            )}
+            {!alerteSeulement && sousSeuilIds.size > 0 && (
               <Badge color="red">{sousSeuilIds.size} sous seuil</Badge>
             )}
           </div>
@@ -304,8 +347,9 @@ function ArticlesInner() {
           <Field label="Prix unitaire HT (FCFA)">
             <Input
               type="number"
+              min={0}
               value={form.prixUnitaire}
-              onChange={(e) => setForm({ ...form, prixUnitaire: Number(e.target.value) })}
+              onChange={(e) => setForm({ ...form, prixUnitaire: numberValue(e.target.value) })}
             />
           </Field>
           <Field label="Taux TVA (%)">
@@ -318,15 +362,17 @@ function ArticlesInner() {
           <Field label="Prix unitaire TTC (FCFA)">
             <Input
               type="number"
+              min={0}
               value={form.prixUnitaireTTc}
-              onChange={(e) => setForm({ ...form, prixUnitaireTTc: Number(e.target.value) })}
+              onChange={(e) => setForm({ ...form, prixUnitaireTTc: numberValue(e.target.value) })}
             />
           </Field>
           <Field label="Seuil d'alerte stock">
             <Input
               type="number"
+              min={0}
               value={form.seuilAlerte}
-              onChange={(e) => setForm({ ...form, seuilAlerte: Number(e.target.value) })}
+              onChange={(e) => setForm({ ...form, seuilAlerte: numberValue(e.target.value) })}
               placeholder="10"
             />
           </Field>

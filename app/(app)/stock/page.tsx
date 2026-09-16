@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Boxes, PackageSearch } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Article, MvtStk } from "@/lib/types";
-import { dateTime, num } from "@/lib/format";
+import { dateTime, num, numberValue } from "@/lib/format";
 import { canManage, useAuth } from "@/lib/auth";
 import {
   Badge,
@@ -33,52 +33,57 @@ export default function StockPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [articleId, setArticleId] = useState("");
   const [stock, setStock] = useState<number | null>(null);
+  const [stockEnCours, setStockEnCours] = useState(false);
   const [movements, setMovements] = useState<MvtStk[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const [mvtOpen, setMvtOpen] = useState(false);
   const [mvtType, setMvtType] = useState<"entree" | "sortie" | "correctionpos" | "correctionneg">("entree");
   const [quantite, setQuantite] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  const loadArticle = useCallback(async () => {
-    try {
-      setArticles(await api<Article[]>("/articles/all"));
-    } catch {
-      /* silencieux */
-    }
+  // Chargement async : setState dans les callbacks de réponse
+  const loadArticle = useCallback(() => {
+    api<Article[]>("/articles/all")
+      .then((arts) => setArticles(arts))
+      .catch(() => undefined /* silencieux */);
   }, []);
 
   useEffect(() => {
     loadArticle();
   }, [loadArticle]);
 
-  const loadDetail = useCallback(
-    async (id: string) => {
-      if (!id) return;
-      setLoading(true);
-      try {
-        const [stockVal, mvt] = await Promise.all([
+  const loadDetail = useCallback((id: string) => {
+    if (!id) return;
+    Promise.resolve()
+      .then(() => setStockEnCours(true))
+      .then(() =>
+        Promise.all([
           api<number>(`/mvtstk/stockreel/${id}`),
           api<MvtStk[]>(`/mvtstk/filter/article/${id}`),
-        ]);
+        ])
+      )
+      .then(([stockVal, mvt]) => {
         setStock(stockVal);
         setMovements(mvt);
-      } catch {
+        setStockEnCours(false);
+      })
+      .catch(() => {
         setStock(null);
         setMovements([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+        setStockEnCours(false);
+      });
+  }, []);
 
   useEffect(() => {
     loadDetail(articleId);
   }, [articleId, loadDetail]);
 
   const doMvt = async () => {
+    // Validation : quantité entière strictement positive
+    if (!Number.isInteger(quantite) || quantite <= 0) {
+      toast("La quantité doit être un nombre entier supérieur à 0", "error");
+      return;
+    }
     setSaving(true);
     try {
       await api(`/mvtstk/${mvtType}`, {
@@ -140,7 +145,7 @@ export default function StockPage() {
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-widest text-slate-500">Stock réel</p>
-                  {loading ? (
+                  {stockEnCours ? (
                     <p className="text-3xl font-bold text-slate-500">…</p>
                   ) : (
                     <p className="text-4xl font-bold tracking-tight text-white">{num(stock)}</p>
@@ -184,7 +189,7 @@ export default function StockPage() {
           </div>
           <div className="max-h-[26rem] space-y-2 overflow-y-auto px-6 pb-6">
             {!articleId && <p className="py-10 text-center text-sm text-slate-500">👈 Choisissez un article</p>}
-            {articleId && !loading && movements.length === 0 && (
+            {articleId && !stockEnCours && movements.length === 0 && (
               <p className="py-10 text-center text-sm text-slate-500">Aucun mouvement enregistré</p>
             )}
             {movements.map((m) => {
@@ -229,8 +234,9 @@ export default function StockPage() {
           <Input
             type="number"
             min={1}
+            step={1}
             value={quantite}
-            onChange={(e) => setQuantite(Number(e.target.value))}
+            onChange={(e) => setQuantite(numberValue(e.target.value))}
           />
         </Field>
         <p className="mt-3 text-xs text-slate-500">

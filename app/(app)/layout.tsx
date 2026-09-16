@@ -2,26 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { loading } = useAuth();
-  const [checked, setChecked] = useState(false);
+  const { user, loading } = useAuth();
   const [mobileNav, setMobileNav] = useState(false);
 
+  // Redirection vers /login si la session est résolue mais absente.
   useEffect(() => {
-    if (!getToken()) {
+    if (!loading && !user) {
       router.replace("/login");
-      return;
     }
-    setChecked(true);
-  }, [router]);
+  }, [loading, user, router]);
 
-  if (!checked || loading) {
+  if (loading || !user) {
     return (
       <div className="app-bg flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
@@ -42,7 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setMobileNav(true)} />
-        <main className="flex-1 px-6 py-7 sm:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-7 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -38,9 +38,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Résolution initiale de la session : appel asynchrone lancé une seule fois
+  // au montage ; les setState ont lieu dans les callbacks de la promesse.
   useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
+    let annule = false;
+    // Le resolve() force la branche async : la règle set-state-in-effect exige
+    // qu'aucun setState ne soit atteignable synchrônement depuis l'effet.
+    Promise.resolve(getToken())
+      .then((token) => {
+        if (!token) {
+          setUser(null);
+          setLoading(false);
+          return null;
+        }
+        return api<Utilisateur>("/auth/me")
+          .then((me) => {
+            if (!annule) setUser(me);
+          })
+          .catch(() => {
+            if (!annule) setUser(null);
+          });
+      })
+      .finally(() => {
+        if (!annule) setLoading(false);
+      });
+    return () => {
+      annule = true;
+    };
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {

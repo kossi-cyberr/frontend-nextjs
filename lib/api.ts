@@ -47,7 +47,8 @@ async function handle<T>(res: Response): Promise<T> {
     if (res.status === 401) {
       clearToken();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
+        // assign via location.assign : règle eslint next/no-location-assign-relative-destination
+        window.location.assign("/login");
       }
     }
     throw new ApiError(res.status, message, code, errors);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, Check, Pencil, X } from "lucide-react";
 import { api, photoUrl, uploadFile } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -27,20 +27,22 @@ export default function ProfilPage() {
   const [apercu, setApercu] = useState<string | undefined>(undefined);
   const inputPhoto = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (user) {
-      setForm({
-        nom: user.nom ?? "",
-        prenom: user.prenom ?? "",
-        dateDeNaissance: user.dateDeNaissance ?? "",
-        addresse1: user.adresse?.addresse1 ?? "",
-        addresse2: user.adresse?.addresse2 ?? "",
-        Ville: user.adresse?.Ville ?? "",
-        codePostale: user.adresse?.codePostale ?? "",
-        pays: user.adresse?.pays ?? "",
-      });
-    }
-  }, [user, edition]);
+  // Synchronise le formulaire quand l'utilisateur arrive ou change (via une
+  // dérivation d'état plutôt qu'un setState synchrone dans un effet).
+  const [userCharge, setUserCharge] = useState<Utilisateur | null>(null);
+  if (user && userCharge !== user) {
+    setUserCharge(user);
+    setForm({
+      nom: user.nom ?? "",
+      prenom: user.prenom ?? "",
+      dateDeNaissance: user.dateDeNaissance ?? "",
+      addresse1: user.adresse?.addresse1 ?? "",
+      addresse2: user.adresse?.addresse2 ?? "",
+      Ville: user.adresse?.Ville ?? "",
+      codePostale: user.adresse?.codePostale ?? "",
+      pays: user.adresse?.pays ?? "",
+    });
+  }
 
   if (!user) return null;
 

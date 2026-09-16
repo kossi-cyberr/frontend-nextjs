@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Eye, FileText, Plus, Trash2, X } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
 import type { Article, Client, CommandeClient, EtatCommande, LigneVente } from "@/lib/types";
-import { dateTime, money } from "@/lib/format";
+import { dateTime, money, numberValue } from "@/lib/format";
 import { canManage, useAuth } from "@/lib/auth";
 import {
   Badge,
@@ -43,37 +43,37 @@ export default function CommandesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [creating, setCreating] = useState(false);
   const [newCmd, setNewCmd] = useState({
-    code: `CMD-${Date.now().toString().slice(-6)}`,
+    code: "",
     clientId: "",
     lignes: [] as { articleId: string; quantite: number; prixUnitaire: number }[],
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(page), size: String(size) });
-      if (search) params.set("search", search);
-      const res = await api<{ content: CommandeClient[]; totalElements: number }>(
-        `/commandesclients/paged?${params}`
-      );
-      setRows(res.content);
-      setTotal(res.totalElements);
-    } finally {
-      setLoading(false);
-    }
+  // Code par défaut généré à l'ouverture du modal (Date.now() est impure au rendu)
+  const openCreate = () => {
+    setNewCmd((c) => ({ ...c, code: `CMD-${Date.now().toString().slice(-6)}` }));
+    setCreateOpen(true);
+  };
+
+  // Chargement async : setState dans les callbacks de réponse
+  const load = useCallback(() => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (search) params.set("search", search);
+    api<{ content: CommandeClient[]; totalElements: number }>(`/commandesclients/paged?${params}`)
+      .then((res) => {
+        setRows(res.content);
+        setTotal(res.totalElements);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [page, size, search]);
 
-  const loadRefs = useCallback(async () => {
-    try {
-      const [c, a] = await Promise.all([
-        api<Client[]>("/clients/all"),
-        api<Article[]>("/articles/all"),
-      ]);
-      setClients(c);
-      setArticles(a);
-    } catch {
-      /* silencieux */
-    }
+  const loadRefs = useCallback(() => {
+    Promise.all([api<Client[]>("/clients/all"), api<Article[]>("/articles/all")])
+      .then(([c, a]) => {
+        setClients(c);
+        setArticles(a);
+      })
+      .catch(() => undefined /* silencieux */);
   }, []);
 
   useEffect(() => {
@@ -128,6 +128,16 @@ export default function CommandesPage() {
   };
 
   const create = async () => {
+    // Validation : client choisi et lignes complètes avant l'appel API
+    if (!newCmd.clientId) {
+      toast("Veuillez sélectionner un client", "error");
+      return;
+    }
+    const lignesInvalides = newCmd.lignes.filter((l) => !l.articleId || l.quantite <= 0);
+    if (lignesInvalides.length > 0) {
+      toast("Chaque ligne doit avoir un article et une quantité positive", "error");
+      return;
+    }
     setCreating(true);
     try {
       await api("/commandesclients/create", {
@@ -146,7 +156,7 @@ export default function CommandesPage() {
       });
       toast("Commande créée");
       setCreateOpen(false);
-      setNewCmd({ ...newCmd, code: `CMD-${Date.now().toString().slice(-6)}`, clientId: "", lignes: [] });
+      setNewCmd({ code: `CMD-${Date.now().toString().slice(-6)}`, clientId: "", lignes: [] });
       load();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Création impossible", "error");
@@ -233,7 +243,7 @@ export default function CommandesPage() {
         subtitle={`${total} commande${total > 1 ? "s" : ""}`}
         actions={
           manage && (
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Nouvelle commande
             </Button>
@@ -339,6 +349,11 @@ export default function CommandesPage() {
                     <Select
                       value={l.articleId}
                       onChange={(e) => {
+                        // Empêche deux lignes avec le même article
+                        if (newCmd.lignes.some((x, i) => i !== idx && x.articleId === e.target.value)) {
+                          toast("Cet article est déjà dans la commande", "error");
+                          return;
+                        }
                         const art = articles.find((a) => String(a.id) === e.target.value);
                         updateLine(idx, {
                           articleId: e.target.value,
@@ -361,7 +376,7 @@ export default function CommandesPage() {
                       type="number"
                       min={1}
                       value={l.quantite}
-                      onChange={(e) => updateLine(idx, { quantite: Number(e.target.value) })}
+                      onChange={(e) => updateLine(idx, { quantite: numberValue(e.target.value) })}
                     />
                   </Field>
                 </div>
@@ -369,8 +384,9 @@ export default function CommandesPage() {
                   <Field label="PU TTC">
                     <Input
                       type="number"
+                      min={0}
                       value={l.prixUnitaire}
-                      onChange={(e) => updateLine(idx, { prixUnitaire: Number(e.target.value) })}
+                      onChange={(e) => updateLine(idx, { prixUnitaire: numberValue(e.target.value) })}
                     />
                   </Field>
                 </div>

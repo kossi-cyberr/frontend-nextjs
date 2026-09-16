@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Mail, MapPin, Phone, Plus, Trash2, Truck, Users } from "lucide-react";
 import { api } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { canManage, useAuth } from "@/lib/auth";
 import {
   Button,
@@ -38,6 +39,7 @@ export default function PartnersPage({ kind }: { kind: "clients" | "fournisseurs
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState("");
+  const searchDebounced = useDebouncedValue(search);
   const [sortBy, setSortBy] = useState("id");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -47,18 +49,18 @@ export default function PartnersPage({ kind }: { kind: "clients" | "fournisseurs
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<Partner | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(page), size: String(size), sortBy, sortDir });
-      if (search) params.set("search", search);
-      const res = await api<{ content: Partner[]; totalElements: number }>(`/${kind}/paged?${params}`);
-      setRows(res.content);
-      setTotal(res.totalElements);
-    } finally {
-      setLoading(false);
-    }
-  }, [kind, page, size, search, sortBy, sortDir]);
+  // Chargement async : setState dans les callbacks de réponse
+  const load = useCallback(() => {
+    const params = new URLSearchParams({ page: String(page), size: String(size), sortBy, sortDir });
+    if (searchDebounced) params.set("search", searchDebounced);
+    api<{ content: Partner[]; totalElements: number }>(`/${kind}/paged?${params}`)
+      .then((res) => {
+        setRows(res.content);
+        setTotal(res.totalElements);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [kind, page, size, searchDebounced, sortBy, sortDir]);
 
   useEffect(() => {
     load();
@@ -77,6 +79,15 @@ export default function PartnersPage({ kind }: { kind: "clients" | "fournisseurs
   };
 
   const save = async () => {
+    // Validation : nom obligatoire, email au bon format
+    if (!form.nom?.trim()) {
+      toast("Le nom est obligatoire", "error");
+      return;
+    }
+    if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) {
+      toast("L'adresse email n'est pas valide", "error");
+      return;
+    }
     setSaving(true);
     try {
       await api(`/${kind}/create`, { method: "POST", body: form });

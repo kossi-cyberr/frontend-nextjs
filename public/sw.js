@@ -1,12 +1,10 @@
-const CACHE_NAME = "stockflow-v1";
+const CACHE_NAME = "stockflow-v2";
 const STATIC_ASSETS = [
-  "/",
-  "/login",
   "/manifest.json",
   "/favicon.ico",
 ];
 
-// Install — pre-cache shell
+// Install — pre-cache minimal (le shell Next.js est haché, pas pré-cachable)
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -26,20 +24,22 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch — network-first for API, cache-first for static
+// Fetch — network-first pour tout, fallback cache si hors-ligne
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Skip non-GET and API calls
+  // Skip non-GET
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
 
-  // API / external: network-first
+  // API / external: network-first, cache fallback (hors-ligne)
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api")) {
     event.respondWith(
       fetch(request)
         .then((res) => {
+          // Ne cache pas les réponses d'erreur ou opaques
+          if (!res || res.status !== 200 || res.type === "opaque") return res;
           const clone = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return res;
@@ -49,15 +49,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Navigation & assets: network-first avec fallback cache.
+  // (Évite les pages HTML obsolètes après déploiement — l'ancien cache-first
+  //  servait du JS/HTML périmé jusqu'à expiration du cache.)
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetched = fetch(request).then((res) => {
+    fetch(request)
+      .then((res) => {
+        if (!res || res.status !== 200 || res.type === "opaque") return res;
         const clone = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return res;
-      });
-      return cached || fetched;
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });

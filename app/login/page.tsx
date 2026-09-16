@@ -243,7 +243,7 @@ export default function LoginPage() {
             Annuler
           </Button>
           <Button onClick={handleSignup} loading={signupLoading}>
-            Créer l'entreprise
+            Créer l&apos;entreprise
           </Button>
         </div>
       </Modal>

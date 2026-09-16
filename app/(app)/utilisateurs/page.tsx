@@ -48,13 +48,14 @@ export default function UtilisateursPage() {
     adresse: ADRESSE_VIDE,
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setUsers(await api<Utilisateur[]>("/utilisateurs/all"));
-    } finally {
-      setLoading(false);
-    }
+  // Chargement async : setState dans les callbacks de réponse
+  const load = useCallback(() => {
+    api<Utilisateur[]>("/utilisateurs/all")
+      .then((users) => {
+        setUsers(users);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -224,11 +225,13 @@ export default function UtilisateursPage() {
           </Field>
           <Field label="Mot de passe *">
             <Input
-              type="text"
+              type="password"
               placeholder="Mot de passe provisoire"
               value={form.motDePasse}
               onChange={(e) => setForm({ ...form, motDePasse: e.target.value })}
               required
+              minLength={6}
+              autoComplete="new-password"
             />
           </Field>
           <Field label="Date de naissance *">
@@ -293,7 +296,7 @@ export default function UtilisateursPage() {
           </Field>
         </div>
         <p className="mt-4 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
-          L'utilisateur sera rattaché automatiquement à votre entreprise. Communiquez-lui son mot de
+          L&apos;utilisateur sera rattaché automatiquement à votre entreprise. Communiquez-lui son mot de
           passe ; il pourra le changer après sa première connexion.
         </p>
         <div className="mt-6 flex justify-end gap-3">
@@ -301,7 +304,7 @@ export default function UtilisateursPage() {
             Annuler
           </Button>
           <Button onClick={createUser} loading={creating}>
-            Créer l'utilisateur
+            Créer l&apos;utilisateur
           </Button>
         </div>
       </Modal>

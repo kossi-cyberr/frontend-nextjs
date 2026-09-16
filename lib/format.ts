@@ -18,8 +18,14 @@ export function moneyCompact(value?: number | null): string {
 }
 
 export function num(value?: number | null): string {
-  if (value === null || value === undefined) return "—";
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
   return FCFA.format(Number(value));
+}
+
+/** Convertit la valeur d'un input (peut être "") en nombre sûr (NaN -> 0). */
+export function numberValue(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export function dateTime(value?: string | null): string {

@@ -26,14 +26,20 @@ import {
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await api<Dashboard>("/dashboard"));
-    } finally {
-      setLoading(false);
-    }
+  // Chargement async : setState dans les callbacks de réponse
+  const load = useCallback(() => {
+    api<Dashboard>("/dashboard")
+      .then((d) => {
+        setData(d);
+        setError("");
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Impossible de charger le tableau de bord");
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -48,7 +54,25 @@ export default function DashboardPage() {
     );
   }
 
-  const d = data as Dashboard;
+  if (error && !data) {
+    return (
+      <div className="glass flex flex-col items-center gap-4 p-12 text-center">
+        <AlertTriangle className="h-10 w-10 text-rose-400" />
+        <p className="text-sm text-slate-300">{error}</p>
+        <p className="text-xs text-slate-500">
+          Vérifiez que le serveur est démarré, puis réessayez.
+        </p>
+        <Button variant="secondary" onClick={load} loading={loading}>
+          <RefreshCw className="h-4 w-4" />
+          Réessayer
+        </Button>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const d = data;
 
   const kpis = [
     {

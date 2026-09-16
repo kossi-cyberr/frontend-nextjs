@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Button                                                             */
@@ -168,15 +168,26 @@ export function Modal({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Bloque le scroll de la page derrière la modale
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
   }, [open, onClose]);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
       <div
         className={`relative glass w-full ${wide ? "max-w-2xl" : "max-w-md"} max-h-[90vh] overflow-y-auto p-6 animate-scale-in`}
@@ -185,6 +196,7 @@ export function Modal({
           <h2 className="text-lg font-semibold text-white">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Fermer"
             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
           >
             <X className="h-4 w-4" />
@@ -241,20 +253,26 @@ export function ConfirmDialog({
 /* ------------------------------------------------------------------ */
 type Toast = { id: number; message: string; type: "success" | "error" };
 
+const TOAST_DURATION = 4000;
+
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const counter = useRef(0);
 
-  const toast = (message: string, type: "success" | "error" = "success") => {
-    const id = Date.now() + Math.random();
+  const toast = useCallback((message: string, type: "success" | "error" = "success") => {
+    counter.current += 1;
+    const id = counter.current;
     setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
-  };
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), TOAST_DURATION);
+  }, []);
 
   const Toaster = (
-    <div className="fixed bottom-6 right-6 z-[60] flex flex-col gap-3">
+    <div className="fixed bottom-6 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 flex-col gap-3 sm:left-auto sm:right-6 sm:translate-x-0">
       {toasts.map((t) => (
         <div
           key={t.id}
+          role="status"
+          aria-live="polite"
           className={`glass flex items-center gap-3 px-4 py-3 text-sm animate-slide-up ${
             t.type === "success" ? "text-emerald-200" : "text-red-200"
           }`}
