@@ -14,7 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { photoUrl } from "@/lib/api";
-import { canManage, useAuth } from "@/lib/auth";
+import { canManage, isVendeur, useAuth } from "@/lib/auth";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +30,16 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout, roles } = useAuth();
+  const vendeur = isVendeur(roles);
+
+  /** Filtre les liens du menu selon le rôle. */
+  const visibleNav = NAV.filter(({ href }) => {
+    if (!vendeur) return true;
+    // Vendeur ne voit pas : fournisseurs, utilisateurs
+    if (href === "/fournisseurs") return false;
+    if (href === "/utilisateurs") return false;
+    return true;
+  });
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/[0.06] bg-black/30 backdrop-blur-xl lg:flex">
@@ -46,7 +56,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="mt-2 flex-1 space-y-1 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {visibleNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link

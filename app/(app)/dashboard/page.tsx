@@ -16,6 +16,7 @@ import { api } from "@/lib/api";
 import type { Dashboard } from "@/lib/types";
 import { money, moneyCompact, dateOnly } from "@/lib/format";
 import { Badge, Button, Card, CardHeader, PageTitle, Spinner } from "@/components/ui";
+import { isVendeur, useAuth } from "@/lib/auth";
 import {
   CommandesParClientChart,
   TopArticlesList,
@@ -24,6 +25,8 @@ import {
 } from "@/components/charts";
 
 export default function DashboardPage() {
+  const { roles } = useAuth();
+  const vendeur = isVendeur(roles);
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -144,12 +147,14 @@ export default function DashboardPage() {
 
       {/* Compteurs rapides */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Clients", value: d.nombreClients, icon: Users },
-          { label: "Fournisseurs", value: d.nombreFournisseurs, icon: Package },
-          { label: "Commandes clients", value: d.nombreCommandesClient, icon: Package },
-          { label: "Commandes fournisseurs", value: d.nombreCommandesFournisseur, icon: Package },
-        ].map((c) => (
+        {(
+          [
+            { label: "Clients", value: d.nombreClients, icon: Users },
+            ...(!vendeur ? [{ label: "Fournisseurs", value: d.nombreFournisseurs, icon: Package }] : []),
+            { label: "Commandes clients", value: d.nombreCommandesClient, icon: Package },
+            ...(!vendeur ? [{ label: "Commandes fournisseurs", value: d.nombreCommandesFournisseur, icon: Package }] : []),
+          ] as const
+        ).map((c) => (
           <div
             key={c.label}
             className="glass flex items-center gap-3 px-5 py-4 transition hover:border-white/20"

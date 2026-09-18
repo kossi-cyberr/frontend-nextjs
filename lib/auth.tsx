@@ -119,3 +119,8 @@ export function useAuth() {
 export function canManage(roles: string[]) {
   return roles.includes("ADMIN") || roles.includes("MANAGER");
 }
+
+/** Vrai si l'utilisateur est uniquement vendeur (aucun autre rôle). */
+export function isVendeur(roles: string[]) {
+  return roles.length === 1 && roles.includes("VENDEUR");
+}
