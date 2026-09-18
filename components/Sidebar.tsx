@@ -38,7 +38,7 @@ export default function Sidebar() {
           <Boxes className="h-5 w-5 text-white" />
         </div>
         <div>
-          <p className="text-sm font-bold tracking-tight text-white">StockFlow</p>
+          <p className="text-sm font-bold tracking-tight text-white">STOCK-HUB</p>
           <p className="text-[10px] uppercase tracking-widest text-slate-500">
             Gestion de stock
           </p>

@@ -15,14 +15,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StockFlow — Gestion de stock",
+  title: "STOCK-HUB — Gestion de stock",
   description:
     "Plateforme ultramoderne de gestion de stock, ventes et facturation multi-entreprise.",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/icon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/icon-192x192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "StockFlow",
+    title: "STOCK-HUB",
   },
 };
 

@@ -78,7 +78,7 @@ export default function LoginPage() {
             <Boxes className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            <span className="text-gradient">StockFlow</span>
+            <span className="text-gradient">STOCK-HUB</span>
           </h1>
           <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
             <Sparkles className="h-3.5 w-3.5 text-indigo-400" />

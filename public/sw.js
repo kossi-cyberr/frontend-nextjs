@@ -1,7 +1,9 @@
-const CACHE_NAME = "stockflow-v2";
+const CACHE_NAME = "stock-hub-v1";
 const STATIC_ASSETS = [
   "/manifest.json",
-  "/favicon.ico",
+  "/icon.png",
+  "/icons/icon-192x192.png",
+  "/icons/icon-maskable-192x192.png",
 ];
 
 // Install — pre-cache minimal (le shell Next.js est haché, pas pré-cachable)
