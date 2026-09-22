@@ -6,7 +6,7 @@
  * Les PNG produits sont commités : ce script n'a besoin d'être relancé
  * que si les SVG maîtres changent.
  *
- * Usage : cd frontend/stock-ui && node scripts/generate-pwa-icons.mjs
+ * Usage : cd frontend-nextjs && node scripts/generate-pwa-icons.mjs
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
