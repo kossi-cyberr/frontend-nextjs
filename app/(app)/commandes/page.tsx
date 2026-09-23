@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, FileText, Plus, Receipt, Trash2, X } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
-import type { Article, Client, CommandeClient, EtatCommande, LigneVente } from "@/lib/types";
+import type { Article, Client, CommandeClient, EtatCommande, LigneVente, Utilisateur } from "@/lib/types";
 import { dateTime, money, numberValue } from "@/lib/format";
 import { canManage, useAuth } from "@/lib/auth";
 import {
@@ -34,8 +34,10 @@ export default function CommandesPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState("");
-  // Filtre par état, appliqué côté serveur (pagination backend)
+  // Filtres état et vendeur, appliqués côté serveur (pagination backend)
   const [etatFiltre, setEtatFiltre] = useState<"" | EtatCommande>("");
+  const [vendeurFiltre, setVendeurFiltre] = useState("");
+  const [vendeurs, setVendeurs] = useState<Utilisateur[]>([]);
 
   const [lines, setLines] = useState<LigneVente[]>([]);
   const [linesOpen, setLinesOpen] = useState(false);
@@ -80,6 +82,7 @@ export default function CommandesPage() {
     const params = new URLSearchParams({ page: String(page), size: String(size) });
     if (search) params.set("search", search);
     if (etatFiltre) params.set("etatCommande", etatFiltre);
+    if (vendeurFiltre) params.set("vendeurId", vendeurFiltre);
     api<{ content: CommandeClient[]; totalElements: number }>(`/commandesclients/paged?${params}`)
       .then((res) => {
         setRows(res.content);
@@ -87,13 +90,24 @@ export default function CommandesPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [page, size, search, etatFiltre]);
+  }, [page, size, search, etatFiltre, vendeurFiltre]);
 
   const loadRefs = useCallback(() => {
-    Promise.all([api<Client[]>("/clients/all"), api<Article[]>("/articles/all")])
-      .then(([c, a]) => {
+    Promise.all([api<Client[]>("/clients/all"), api<Article[]>("/articles/all"), api<Utilisateur[]>("/utilisateurs/all")])
+      .then(([c, a, u]) => {
         setClients(c);
         setArticles(a);
+        // Liste des vendeurs pour le filtre (dédupliquée par nom, triée)
+        const noms = new Map<string, string>();
+        for (const util of u) {
+          const nomComplet = `${util.nom ?? ""} ${util.prenom ?? ""}`.trim();
+          if (nomComplet) noms.set(nomComplet, String(util.id));
+        }
+        setVendeurs(
+          Array.from(noms.entries())
+            .map(([nomComplet, id]) => ({ id: Number(id), nom: nomComplet, prenom: "" }))
+            .sort((x, y) => x.nom.localeCompare(y.nom))
+        );
       })
       .catch(() => undefined /* silencieux */);
   }, []);
@@ -396,6 +410,21 @@ export default function CommandesPage() {
               {ETATS.map((e) => (
                 <option key={e} value={e}>
                   {e.replaceAll("_", " ")}
+                </option>
+              ))}
+            </Select>
+            <Select
+              className="!w-52 !py-1.5 text-xs"
+              value={vendeurFiltre}
+              onChange={(e) => {
+                setVendeurFiltre(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Tous les vendeurs</option>
+              {vendeurs.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.nom}
                 </option>
               ))}
             </Select>
