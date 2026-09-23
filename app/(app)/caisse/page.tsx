@@ -5,11 +5,11 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  Coins,
   Package,
   RefreshCw,
   Receipt,
   ShoppingCart,
+  ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Article, Vente } from "@/lib/types";
@@ -25,7 +25,7 @@ import {
 import { Badge, Button, Card, CardHeader, EmptyState, PageTitle, Spinner } from "@/components/ui";
 import GardeVendeur from "@/components/GardeVendeur";
 
-/** Dashboard vendeur : ventes du jour, CA, dernières ventes, alertes stock. */
+/** Dashboard vendeur : ventes du jour, articles vendus, alertes stock. */
 function CaisseDashboard() {
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -97,6 +97,13 @@ function CaisseDashboard() {
       gradient: "from-indigo-500 to-violet-600",
     },
     {
+      href: "/commandes",
+      label: "Commandes",
+      sub: "Commandes clients",
+      icon: ClipboardList,
+      gradient: "from-amber-500 to-orange-600",
+    },
+    {
       href: "/caisse/produits",
       label: "Voir les produits",
       sub: "Prix et stocks",
@@ -118,12 +125,6 @@ function CaisseDashboard() {
       value: String(stats.nombreVentes),
       icon: ShoppingCart,
       iconBg: "bg-indigo-500/15 text-indigo-300",
-    },
-    {
-      label: "Chiffre d'affaires du jour",
-      value: money(stats.chiffreAffaires),
-      icon: Coins,
-      iconBg: "bg-emerald-500/15 text-emerald-300",
     },
     {
       label: "Articles vendus (jour)",
@@ -153,7 +154,7 @@ function CaisseDashboard() {
       />
 
       {/* KPIs du jour */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {kpis.map((kpi) => (
           <Card key={kpi.label} hover className="p-5">
             <div className="flex items-start justify-between">
@@ -168,7 +169,7 @@ function CaisseDashboard() {
       </div>
 
       {/* Actions rapides */}
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {actions.map((a) => (
           <Link key={a.href} href={a.href}>
             <Card hover className="group flex items-center gap-4 p-5">

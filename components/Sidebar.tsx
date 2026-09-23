@@ -13,14 +13,15 @@ import {
   ShieldCheck,
   LogOut,
   ScanBarcode,
+  ClipboardList,
 } from "lucide-react";
 import { photoUrl } from "@/lib/api";
 import { canManage, isVendeur, useAuth } from "@/lib/auth";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/caisse", label: "Caisse", icon: ScanBarcode },
   { href: "/articles", label: "Articles", icon: Package },
+  { href: "/caisse", label: "Caisse", icon: ScanBarcode },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/fournisseurs", label: "Fournisseurs", icon: Truck },
   { href: "/commandes", label: "Commandes", icon: ShoppingCart },
@@ -29,10 +30,12 @@ const NAV = [
   { href: "/utilisateurs", label: "Utilisateurs", icon: ShieldCheck },
 ];
 
-/** Menu réduit du vendeur : uniquement l'espace caisse. */
+/** Menu réduit du vendeur : uniquement son espace de vente. */
 const NAV_VENDEUR = [
   { href: "/caisse", label: "Caisse", icon: ScanBarcode },
+  { href: "/caisse/nouvelle", label: "Nouvelle vente", icon: ShoppingCart },
   { href: "/caisse/produits", label: "Produits", icon: Package },
+  { href: "/commandes", label: "Commandes", icon: ClipboardList },
   { href: "/caisse/ventes", label: "Mes ventes", icon: Receipt },
 ];
 
