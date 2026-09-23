@@ -34,6 +34,8 @@ export default function CommandesPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
   const [search, setSearch] = useState("");
+  // Filtre par état, appliqué côté serveur (pagination backend)
+  const [etatFiltre, setEtatFiltre] = useState<"" | EtatCommande>("");
 
   const [lines, setLines] = useState<LigneVente[]>([]);
   const [linesOpen, setLinesOpen] = useState(false);
@@ -77,6 +79,7 @@ export default function CommandesPage() {
   const load = useCallback(() => {
     const params = new URLSearchParams({ page: String(page), size: String(size) });
     if (search) params.set("search", search);
+    if (etatFiltre) params.set("etatCommande", etatFiltre);
     api<{ content: CommandeClient[]; totalElements: number }>(`/commandesclients/paged?${params}`)
       .then((res) => {
         setRows(res.content);
@@ -84,7 +87,7 @@ export default function CommandesPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [page, size, search]);
+  }, [page, size, search, etatFiltre]);
 
   const loadRefs = useCallback(() => {
     Promise.all([api<Client[]>("/clients/all"), api<Article[]>("/articles/all")])
@@ -269,6 +272,16 @@ export default function CommandesPage() {
       ),
     },
     {
+      key: "nomVendeur",
+      header: "Vendeur",
+      render: (c) =>
+        c.nomVendeur ? (
+          <span className="text-slate-200">{c.nomVendeur}</span>
+        ) : (
+          <span className="text-slate-500">—</span>
+        ),
+    },
+    {
       key: "etatCommande",
       header: "État",
       sortable: true,
@@ -366,7 +379,26 @@ export default function CommandesPage() {
         searchPlaceholder="Rechercher un code…"
         rowKey={(c) => String(c.id)}
         emptyMessage="Aucune commande trouvée"
-        toolbar={<Badge color="indigo">Suivi des états en temps réel</Badge>}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge color="indigo">Suivi des états en temps réel</Badge>
+            <Select
+              className="!w-44 !py-1.5 text-xs"
+              value={etatFiltre}
+              onChange={(e) => {
+                setEtatFiltre(e.target.value as "" | EtatCommande);
+                setPage(0);
+              }}
+            >
+              <option value="">Tous les états</option>
+              {ETATS.map((e) => (
+                <option key={e} value={e}>
+                  {e.replaceAll("_", " ")}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
       />
 
       {/* Détail des lignes */}
