@@ -12,6 +12,8 @@ import {
   Boxes,
   ShieldCheck,
   LogOut,
+  ScanBarcode,
+  ClipboardList,
 } from "lucide-react";
 import { photoUrl } from "@/lib/api";
 import { canManage, isVendeur, useAuth } from "@/lib/auth";
@@ -19,6 +21,7 @@ import { canManage, isVendeur, useAuth } from "@/lib/auth";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/articles", label: "Articles", icon: Package },
+  { href: "/caisse", label: "Caisse", icon: ScanBarcode },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/fournisseurs", label: "Fournisseurs", icon: Truck },
   { href: "/commandes", label: "Commandes", icon: ShoppingCart },
@@ -27,19 +30,22 @@ const NAV = [
   { href: "/utilisateurs", label: "Utilisateurs", icon: ShieldCheck },
 ];
 
+/** Menu réduit du vendeur : uniquement son espace de vente. */
+const NAV_VENDEUR = [
+  { href: "/caisse", label: "Caisse", icon: ScanBarcode },
+  { href: "/caisse/nouvelle", label: "Nouvelle vente", icon: ShoppingCart },
+  { href: "/caisse/produits", label: "Produits", icon: Package },
+  { href: "/commandes", label: "Commandes", icon: ClipboardList },
+  { href: "/caisse/ventes", label: "Mes ventes", icon: Receipt },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout, roles } = useAuth();
   const vendeur = isVendeur(roles);
 
-  /** Filtre les liens du menu selon le rôle. */
-  const visibleNav = NAV.filter(({ href }) => {
-    if (!vendeur) return true;
-    // Vendeur ne voit pas : fournisseurs, utilisateurs
-    if (href === "/fournisseurs") return false;
-    if (href === "/utilisateurs") return false;
-    return true;
-  });
+  /** Sélectionne les liens du menu selon le rôle. */
+  const visibleNav = vendeur ? NAV_VENDEUR : NAV;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/[0.06] bg-black/30 backdrop-blur-xl lg:flex">

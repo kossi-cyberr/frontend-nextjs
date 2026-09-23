@@ -141,7 +141,11 @@ function ArticlesInner() {
     }
     setSaving(true);
     try {
-      await api<Article>("/articles/create", { method: "POST", body: form });
+      if (editing?.id) {
+        await api<Article>(`/articles/update/${editing.id}`, { method: "PUT", body: form });
+      } else {
+        await api<Article>("/articles/create", { method: "POST", body: form });
+      }
       toast(editing ? "Article modifié" : "Article créé");
       setModalOpen(false);
       load();

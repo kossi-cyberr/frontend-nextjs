@@ -62,6 +62,12 @@ export interface CommandeClient {
   dateComande?: string;
   etatCommande?: EtatCommande;
   client?: Client;
+  /** Nom du vendeur ayant créé la commande (renseigné côté serveur). */
+  nomVendeur?: string;
+  /** Date de livraison effective (renseignée au passage à LIVREE). */
+  dateLivraison?: string;
+  /** Montant total = somme (quantité × prix unitaire) des lignes (calculé côté backend). */
+  montantTotal?: number;
   idEntreprise?: number;
 }
 
@@ -70,6 +76,10 @@ export interface Vente {
   code?: string;
   dateVente?: string;
   commentaire?: string;
+  /** Nom du client (optionnel), information enregistrée sur le ticket/la vente. */
+  nomClient?: string;
+  /** Nom du vendeur ayant enregistré la vente (renseigné côté serveur). */
+  nomVendeur?: string;
   idEntreprise?: number;
   ligneVentes?: LigneVente[];
 }
@@ -122,6 +132,8 @@ export interface Dashboard {
   valeurStock: number;
   margeMoyenne: number;
   topArticles: { idArticle: number; designation: string; codeArticle: string; quantiteVendue: number; chiffreAffaires: number }[];
+  /** Ventes du jour groupées par vendeur (utile aux rôles ADMIN/MANAGER). */
+  ventesDuJourParVendeur: { idVendeur: number; nomVendeur: string; nombreVentes: number; chiffreAffaires: number; articlesVendus: number }[];
   ventesParMois: { annee: number; mois: number; chiffreAffaires: number }[];
   ventesParCategorie: { idCategory: number; designation: string; chiffreAffaires: number }[];
   commandesParClient: { idClient: number; nom: string; prenom: string; nombreCommandes: number; montantTotal: number }[];
