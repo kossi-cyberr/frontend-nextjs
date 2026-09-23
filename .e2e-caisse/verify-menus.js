@@ -98,11 +98,31 @@ async function logout(page) {
     await page.waitForFunction(() => document.body.innerText.includes("Commandes clients"), { timeout: 30000 });
     ok("page Commandes accessible au vendeur");
     const texteCmd = await page.evaluate(() => document.body.innerText);
-    if (texteCmd.includes("Nouvelle commande"))
-      throw new Error("Le bouton créer commande ne devrait pas être visible pour un vendeur");
-    ok("bouton « Nouvelle commande » bien masqué (réservé ADMIN/MANAGER)");
+    if (!texteCmd.includes("Nouvelle commande"))
+      throw new Error("Le bouton « Nouvelle commande » devrait être visible pour le vendeur");
+    ok("bouton « Nouvelle commande » visible : le vendeur peut créer une commande");
+
+    // Test réel de création : ouverture du modal et vérification des champs
+    await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll("button")).find((b) =>
+        b.textContent.includes("Nouvelle commande")
+      );
+      if (!btn) throw new Error("Bouton Nouvelle commande introuvable");
+      btn.click();
+    });
+    await page.waitForFunction(() => document.body.innerText.includes("Nouvelle commande client"), { timeout: 15000 });
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll("select option")).some((o) => o.textContent.includes("— Sélectionner —")),
+      { timeout: 15000 }
+    );
+    ok("modal de création ouvert : champ client et liste d'articles chargés");
     await sleep(400);
     await page.screenshot({ path: "shot-m2-commandes-vendeur.png" });
+    await page.evaluate(() => {
+      const close = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Fermer" || b.getAttribute("aria-label") === "Fermer");
+      if (close) close.click();
+    });
+    await sleep(500);
     await logout(page);
 
     /* ---------------- ADMIN ---------------- */

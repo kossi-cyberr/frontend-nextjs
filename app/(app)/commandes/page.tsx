@@ -242,12 +242,10 @@ export default function CommandesPage() {
         title="Commandes clients"
         subtitle={`${total} commande${total > 1 ? "s" : ""}`}
         actions={
-          manage && (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Nouvelle commande
-            </Button>
-          )
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nouvelle commande
+          </Button>
         }
       />
 
