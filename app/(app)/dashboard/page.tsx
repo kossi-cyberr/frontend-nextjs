@@ -229,6 +229,54 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader
+            title="Ventes du jour par vendeur"
+            subtitle="Performance de l'équipe aujourd'hui"
+            action={
+              (d.ventesDuJourParVendeur ?? []).length > 0 ? (
+                <Badge color="indigo">{(d.ventesDuJourParVendeur ?? []).length} vendeur{d.ventesDuJourParVendeur.length > 1 ? "s" : ""}</Badge>
+              ) : (
+                <Badge color="slate">Aucune vente</Badge>
+              )
+            }
+          />
+          <div className="px-6 pb-6">
+            {(d.ventesDuJourParVendeur ?? []).length === 0 ? (
+              <p className="py-8 text-center text-xs text-slate-500">
+                Aucune vente enregistrée aujourd&apos;hui
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {d.ventesDuJourParVendeur.map((v) => (
+                  <div
+                    key={v.idVendeur}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 transition hover:bg-white/[0.05]"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-500/30 text-[11px] font-bold text-indigo-300">
+                        {(v.nomVendeur ?? "?")
+                          .split(" ")
+                          .map((m) => m.charAt(0))
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-200">{v.nomVendeur || "—"}</p>
+                        <p className="text-[11px] text-slate-500">
+                          {Number(v.nombreVentes)} vente{Number(v.nombreVentes) > 1 ? "s" : ""} · {Number(v.articlesVendus)} article{Number(v.articlesVendus) > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-white">{money(Number(v.chiffreAffaires))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
             title="Alertes stock"
             subtitle="Articles sous le seuil"
             action={

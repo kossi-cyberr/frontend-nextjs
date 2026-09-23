@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Outils e2e autonomes (script Node + captures du parcours caisse)
+    ".e2e-caisse/**",
   ]),
 ]);
 

@@ -125,7 +125,7 @@ function CaisseNouvelle() {
   const total = totalPanier(panier);
 
   const valider = async () => {
-    if (panier.length === 0) return;
+    if (panier.length === 0 || validation) return;
     setValidation(true);
     try {
       const code = `V-${Date.now().toString().slice(-6)}`;
@@ -172,6 +172,25 @@ function CaisseNouvelle() {
     }
   };
 
+  // Raccourcis clavier caisse : F2 = recherche produit, F4 = valider la vente.
+  // Inactifs quand le ticket est ouvert pour ne pas valider dans le dos de l'utilisateur.
+  // Réabonné à chaque rendu pour que `valider` voie toujours l'état courant.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (ticketOuvert) return;
+      if (e.key === "F2") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        void valider();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <div>
       <PageTitle
@@ -211,6 +230,9 @@ function CaisseNouvelle() {
                     onChange={(e) => setRecherche(e.target.value)}
                     autoFocus
                   />
+                  <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 sm:block">
+                    F2
+                  </kbd>
                 </div>
                 <Select
                   className="sm:w-52"
@@ -357,6 +379,9 @@ function CaisseNouvelle() {
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   Valider la vente
+                  <kbd className="ml-1 rounded-md border border-white/25 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold">
+                    F4
+                  </kbd>
                 </Button>
               </div>
             </Card>

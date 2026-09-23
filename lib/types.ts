@@ -126,6 +126,8 @@ export interface Dashboard {
   valeurStock: number;
   margeMoyenne: number;
   topArticles: { idArticle: number; designation: string; codeArticle: string; quantiteVendue: number; chiffreAffaires: number }[];
+  /** Ventes du jour groupées par vendeur (utile aux rôles ADMIN/MANAGER). */
+  ventesDuJourParVendeur: { idVendeur: number; nomVendeur: string; nombreVentes: number; chiffreAffaires: number; articlesVendus: number }[];
   ventesParMois: { annee: number; mois: number; chiffreAffaires: number }[];
   ventesParCategorie: { idCategory: number; designation: string; chiffreAffaires: number }[];
   commandesParClient: { idClient: number; nom: string; prenom: string; nombreCommandes: number; montantTotal: number }[];
