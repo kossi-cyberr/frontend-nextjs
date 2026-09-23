@@ -164,12 +164,12 @@ export default function VentesPage() {
         title="Ventes"
         subtitle={`${total} vente${total > 1 ? "s" : ""} — le stock est déduit automatiquement`}
         actions={
-          manage && (
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              Nouvelle vente
-            </Button>
-          )
+          // Création ouverte à tout utilisateur connecté (VENDEUR inclus) —
+          // seul le bouton de suppression reste réservé à ADMIN/MANAGER.
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nouvelle vente
+          </Button>
         }
       />
 
