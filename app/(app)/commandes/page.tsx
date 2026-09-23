@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, FileText, Plus, Trash2, X } from "lucide-react";
+import { Eye, FileText, Plus, Receipt, Trash2, X } from "lucide-react";
 import { api, downloadFile } from "@/lib/api";
 import type { Article, Client, CommandeClient, EtatCommande, LigneVente } from "@/lib/types";
 import { dateTime, money, numberValue } from "@/lib/format";
@@ -19,6 +19,7 @@ import {
   useToast,
 } from "@/components/ui";
 import DataTable, { type Column } from "@/components/DataTable";
+import TicketVente from "@/components/TicketVente";
 
 const ETATS: EtatCommande[] = ["EN_PREPARATION", "VALIDEE", "LIVREE"];
 
@@ -42,6 +43,23 @@ export default function CommandesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [creating, setCreating] = useState(false);
+
+  // Client : choisir un client existant ou en créer un à la volée
+  const [modeClient, setModeClient] = useState<"existant" | "nouveau">("existant");
+  const [creationClient, setCreationClient] = useState(false);
+  const [nouveauClient, setNouveauClient] = useState({
+    nom: "",
+    prenom: "",
+    mail: "",
+    numTel: "",
+    adresse1: "",
+    ville: "",
+    codePostale: "",
+    pays: "Cameroun",
+  });
+
+  // Ticket de la commande livrée (généré à la demande)
+  const [ticketCmd, setTicketCmd] = useState<{ commande: CommandeClient; lignes: LigneVente[] } | null>(null);
   const [newCmd, setNewCmd] = useState({
     code: "",
     clientId: "",
@@ -51,6 +69,7 @@ export default function CommandesPage() {
   // Code par défaut généré à l'ouverture du modal (Date.now() est impure au rendu)
   const openCreate = () => {
     setNewCmd((c) => ({ ...c, code: `CMD-${Date.now().toString().slice(-6)}` }));
+    setModeClient("existant");
     setCreateOpen(true);
   };
 
@@ -81,6 +100,7 @@ export default function CommandesPage() {
     loadRefs();
   }, [load, loadRefs]);
 
+  /** Ouvre le détail d'une commande en rechargeant ses lignes. */
   const openLines = async (cmd: CommandeClient) => {
     try {
       const res = await api<LigneVente[]>(`/commandesclients/lignesCommande/${cmd.id}`);
@@ -88,6 +108,16 @@ export default function CommandesPage() {
       setLinesOpen(true);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Impossible de charger les lignes", "error");
+    }
+  };
+
+  /** Génère le ticket d'une commande livrée (lignes rechargées depuis l'API). */
+  const ouvrirTicket = async (cmd: CommandeClient) => {
+    try {
+      const lignes = await api<LigneVente[]>(`/commandesclients/lignesCommande/${cmd.id}`);
+      setTicketCmd({ commande: cmd, lignes });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Impossible de charger le ticket", "error");
     }
   };
 
@@ -127,12 +157,53 @@ export default function CommandesPage() {
     }));
   };
 
-  const create = async () => {
-    // Validation : client choisi et lignes complètes avant l'appel API
-    if (!newCmd.clientId) {
-      toast("Veuillez sélectionner un client", "error");
-      return;
+  /** Crée le nouveau client via l'API et renvoie son id (null si échec). */
+  const creerClient = async (): Promise<number | null> => {
+    const champs = [
+      nouveauClient.nom,
+      nouveauClient.prenom,
+      nouveauClient.mail,
+      nouveauClient.numTel,
+      nouveauClient.adresse1,
+      nouveauClient.ville,
+      nouveauClient.pays,
+      nouveauClient.codePostale,
+    ];
+    if (champs.some((v) => !v.trim())) {
+      toast("Renseignez tous les champs du nouveau client (nom, prénom, mail, téléphone, adresse)", "error");
+      return null;
     }
+    setCreationClient(true);
+    try {
+      const c = await api<Client>("/clients/create", {
+        method: "POST",
+        body: {
+          nom: nouveauClient.nom,
+          prenom: nouveauClient.prenom,
+          mail: nouveauClient.mail,
+          numTel: nouveauClient.numTel,
+          adresse: {
+            addresse1: nouveauClient.adresse1,
+            Ville: nouveauClient.ville,
+            codePostale: nouveauClient.codePostale,
+            pays: nouveauClient.pays,
+          },
+        },
+      });
+      setClients((prev) => [...prev, c]);
+      setModeClient("existant");
+      setNouveauClient({ nom: "", prenom: "", mail: "", numTel: "", adresse1: "", ville: "", codePostale: "", pays: "Cameroun" });
+      toast(`Client « ${c.nom} ${c.prenom ?? ""} » créé`);
+      return c.id ?? null;
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Création du client impossible", "error");
+      return null;
+    } finally {
+      setCreationClient(false);
+    }
+  };
+
+  const create = async () => {
     const lignesInvalides = newCmd.lignes.filter((l) => !l.articleId || l.quantite <= 0);
     if (lignesInvalides.length > 0) {
       toast("Chaque ligne doit avoir un article et une quantité positive", "error");
@@ -140,13 +211,22 @@ export default function CommandesPage() {
     }
     setCreating(true);
     try {
+      // Client existant sélectionné, ou création à la volée puis utilisation de son id
+      const clientId =
+        modeClient === "nouveau"
+          ? await creerClient()
+          : Number(newCmd.clientId) || null;
+      if (!clientId) {
+        toast("Veuillez sélectionner ou créer un client", "error");
+        return;
+      }
       await api("/commandesclients/create", {
         method: "POST",
         body: {
           code: newCmd.code,
           dateComande: new Date().toISOString(),
           etatCommande: "EN_PREPARATION",
-          client: { id: Number(newCmd.clientId) },
+          client: { id: clientId },
           ligneComandeClientList: newCmd.lignes.map((l) => ({
             article: { id: Number(l.articleId) },
             quantite: l.quantite,
@@ -157,6 +237,7 @@ export default function CommandesPage() {
       toast("Commande créée");
       setCreateOpen(false);
       setNewCmd({ code: `CMD-${Date.now().toString().slice(-6)}`, clientId: "", lignes: [] });
+      setModeClient("existant");
       load();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Création impossible", "error");
@@ -226,6 +307,12 @@ export default function CommandesPage() {
             <FileText className="h-3.5 w-3.5" />
             PDF
           </Button>
+          {c.etatCommande === "LIVREE" && (
+            <Button variant="secondary" size="sm" onClick={() => ouvrirTicket(c)}>
+              <Receipt className="h-3.5 w-3.5" />
+              Ticket
+            </Button>
+          )}
           {manage && (
             <Button variant="ghost" size="sm" onClick={() => setDeleting(c)}>
               <Trash2 className="h-3.5 w-3.5 text-red-300" />
@@ -310,17 +397,97 @@ export default function CommandesPage() {
             <Input value={newCmd.code} onChange={(e) => setNewCmd({ ...newCmd, code: e.target.value })} />
           </Field>
           <Field label="Client">
-            <Select
-              value={newCmd.clientId}
-              onChange={(e) => setNewCmd({ ...newCmd, clientId: e.target.value })}
-            >
-              <option value="">— Sélectionner —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nom} {c.prenom}
-                </option>
-              ))}
-            </Select>
+            <div className="mb-2 flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={modeClient === "existant" ? "primary" : "secondary"}
+                onClick={() => setModeClient("existant")}
+              >
+                Client existant
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={modeClient === "nouveau" ? "primary" : "secondary"}
+                onClick={() => setModeClient("nouveau")}
+              >
+                + Nouveau client
+              </Button>
+            </div>
+            {modeClient === "existant" ? (
+              <Select
+                value={newCmd.clientId}
+                onChange={(e) => setNewCmd({ ...newCmd, clientId: e.target.value })}
+              >
+                <option value="">— Sélectionner —</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nom} {c.prenom}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <div className="grid gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:grid-cols-2">
+                <Field label="Nom *">
+                  <Input
+                    value={nouveauClient.nom}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, nom: e.target.value })}
+                    placeholder="Nom"
+                  />
+                </Field>
+                <Field label="Prénom *">
+                  <Input
+                    value={nouveauClient.prenom}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, prenom: e.target.value })}
+                    placeholder="Prénom"
+                  />
+                </Field>
+                <Field label="Email *">
+                  <Input
+                    type="email"
+                    value={nouveauClient.mail}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, mail: e.target.value })}
+                    placeholder="client@exemple.com"
+                  />
+                </Field>
+                <Field label="Téléphone *">
+                  <Input
+                    value={nouveauClient.numTel}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, numTel: e.target.value })}
+                    placeholder="+237 6XX XXX XXX"
+                  />
+                </Field>
+                <Field label="Adresse *">
+                  <Input
+                    value={nouveauClient.adresse1}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, adresse1: e.target.value })}
+                    placeholder="Rue, quartier"
+                  />
+                </Field>
+                <Field label="Ville *">
+                  <Input
+                    value={nouveauClient.ville}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, ville: e.target.value })}
+                    placeholder="Ville"
+                  />
+                </Field>
+                <Field label="Code postal *">
+                  <Input
+                    value={nouveauClient.codePostale}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, codePostale: e.target.value })}
+                    placeholder="Code postal"
+                  />
+                </Field>
+                <Field label="Pays *">
+                  <Input
+                    value={nouveauClient.pays}
+                    onChange={(e) => setNouveauClient({ ...nouveauClient, pays: e.target.value })}
+                    placeholder="Pays"
+                  />
+                </Field>
+              </div>
+            )}
           </Field>
         </div>
 
@@ -402,8 +569,12 @@ export default function CommandesPage() {
           <Button variant="secondary" onClick={() => setCreateOpen(false)}>
             Annuler
           </Button>
-          <Button onClick={create} loading={creating} disabled={!newCmd.clientId || newCmd.lignes.length === 0}>
-            Créer la commande
+          <Button
+            onClick={create}
+            loading={creating || creationClient}
+            disabled={(modeClient === "existant" && !newCmd.clientId) || newCmd.lignes.length === 0}
+          >
+            {modeClient === "nouveau" ? "Créer le client et la commande" : "Créer la commande"}
           </Button>
         </div>
       </Modal>
@@ -415,6 +586,21 @@ export default function CommandesPage() {
         title="Supprimer la commande"
         message={`Supprimer la commande « ${deleting?.code} » ?`}
       />
+
+      {/* Ticket imprimable d'une commande livrée */}
+      {ticketCmd && (
+        <TicketVente
+          vente={{
+            code: ticketCmd.commande.code,
+            dateVente: ticketCmd.commande.dateComande,
+            nomClient: ticketCmd.commande.client
+              ? `${ticketCmd.commande.client.nom} ${ticketCmd.commande.client.prenom ?? ""}`.trim()
+              : undefined,
+            ligneVentes: ticketCmd.lignes,
+          }}
+          onClose={() => setTicketCmd(null)}
+        />
+      )}
 
       {Toaster}
     </div>
