@@ -352,6 +352,8 @@ export default function CommandesPage() {
         title="Commandes clients"
         subtitle={`${total} commande${total > 1 ? "s" : ""}`}
         actions={
+          // Création ouverte à tout utilisateur connecté (VENDEUR inclus) —
+          // changement d'état et suppression restent réservés à ADMIN/MANAGER.
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nouvelle commande
