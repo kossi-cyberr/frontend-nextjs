@@ -275,6 +275,16 @@ export default function CommandesPage() {
       render: (c) => <EtatBadge etat={c.etatCommande} />,
     },
     {
+      key: "montantTotal",
+      header: "Total",
+      render: (c) =>
+        c.montantTotal != null ? (
+          <span className="font-semibold text-white">{money(Number(c.montantTotal))}</span>
+        ) : (
+          <span className="text-slate-500">—</span>
+        ),
+    },
+    {
       key: "actions",
       header: "Actions",
       render: (c) => (
@@ -596,8 +606,10 @@ export default function CommandesPage() {
             nomClient: ticketCmd.commande.client
               ? `${ticketCmd.commande.client.nom} ${ticketCmd.commande.client.prenom ?? ""}`.trim()
               : undefined,
+            nomVendeur: ticketCmd.commande.nomVendeur,
             ligneVentes: ticketCmd.lignes,
           }}
+          dateLivraison={ticketCmd.commande.dateLivraison}
           onClose={() => setTicketCmd(null)}
         />
       )}

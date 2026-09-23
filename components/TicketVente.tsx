@@ -11,7 +11,16 @@ import { Button, Modal } from "@/components/ui";
  * Ticket de vente imprimable, réutilisé par la caisse (après validation)
  * et par « Mes ventes » (consultation / réimpression).
  */
-export default function TicketVente({ vente, onClose }: { vente: Vente; onClose: () => void }) {
+export default function TicketVente({
+  vente,
+  dateLivraison,
+  onClose,
+}: {
+  vente: Vente;
+  /** Date de livraison (commandes livrées) — affichée seulement si présente. */
+  dateLivraison?: string;
+  onClose: () => void;
+}) {
   const [impression, setImpression] = useState(false);
 
   // Retire la classe d'impression une fois la boîte système fermée
@@ -54,6 +63,12 @@ export default function TicketVente({ vente, onClose }: { vente: Vente; onClose:
             <div className="flex justify-between">
               <span className="text-slate-500">Client</span>
               <span>{vente.nomClient}</span>
+            </div>
+          )}
+          {dateLivraison && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Livrée le</span>
+              <span>{dateTime(dateLivraison)}</span>
             </div>
           )}
         </div>

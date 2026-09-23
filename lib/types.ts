@@ -62,6 +62,12 @@ export interface CommandeClient {
   dateComande?: string;
   etatCommande?: EtatCommande;
   client?: Client;
+  /** Nom du vendeur ayant créé la commande (renseigné côté serveur). */
+  nomVendeur?: string;
+  /** Date de livraison effective (renseignée au passage à LIVREE). */
+  dateLivraison?: string;
+  /** Montant total = somme (quantité × prix unitaire) des lignes (calculé côté backend). */
+  montantTotal?: number;
   idEntreprise?: number;
 }
 
