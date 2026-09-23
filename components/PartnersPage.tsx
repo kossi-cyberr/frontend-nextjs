@@ -90,7 +90,11 @@ export default function PartnersPage({ kind }: { kind: "clients" | "fournisseurs
     }
     setSaving(true);
     try {
-      await api(`/${kind}/create`, { method: "POST", body: form });
+      if (editing?.id) {
+        await api(`/${kind}/update/${editing.id}`, { method: "PUT", body: { ...form, id: editing.id } });
+      } else {
+        await api(`/${kind}/create`, { method: "POST", body: form });
+      }
       toast(editing ? "Enregistré" : "Créé avec succès");
       setModalOpen(false);
       load();
