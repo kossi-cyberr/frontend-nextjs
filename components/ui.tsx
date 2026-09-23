@@ -136,7 +136,9 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+// React.ComponentProps<"input"> inclut ref (React 19) : permet autoFocus programmatique
+// depuis les pages (ex. champ de recherche de la caisse).
+export function Input(props: React.ComponentProps<"input">) {
   return <input className="field" {...props} />;
 }
 

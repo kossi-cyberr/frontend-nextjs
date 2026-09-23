@@ -70,6 +70,10 @@ export interface Vente {
   code?: string;
   dateVente?: string;
   commentaire?: string;
+  /** Nom du client (optionnel), information enregistrée sur le ticket/la vente. */
+  nomClient?: string;
+  /** Nom du vendeur ayant enregistré la vente (renseigné côté serveur). */
+  nomVendeur?: string;
   idEntreprise?: number;
   ligneVentes?: LigneVente[];
 }

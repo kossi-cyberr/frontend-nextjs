@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -27,9 +28,16 @@ import {
 export default function DashboardPage() {
   const { roles } = useAuth();
   const vendeur = isVendeur(roles);
+  const router = useRouter();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Les vendeurs n'ont pas accès aux KPIs ADMIN/MANAGER : on les envoie à leur espace caisse.
+  useEffect(() => {
+    if (!vendeur) return;
+    router.replace("/caisse");
+  }, [vendeur, router]);
 
   // Chargement async : setState dans les callbacks de réponse
   const load = useCallback(() => {
